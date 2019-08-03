@@ -23,7 +23,7 @@
 /***************************
  Required base by a project
 ****************************/
-#define BASE 8
+#define BASE 14
 #define NUMBER_OF_DIGITS 7 /*Max number for the base*/
 
 #define COMB_WIDTH 2     /*bits 0-1*/

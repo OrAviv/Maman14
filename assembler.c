@@ -15,7 +15,7 @@ int main(int argc, char **argv)
     initialize_table();
 
     /***********************************************************
-        Run on all priveded arguments and execute the assembly.
+        Run on all provided arguments and execute the assembly.
     ************************************************************/
     for (arg_num = 1; arg_num < argc; arg_num++)
     {
