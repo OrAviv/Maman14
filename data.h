@@ -11,7 +11,7 @@
 #define RSVD_OFFSET 18
 
 #define MAX_SIZE 1000
-#define LINE_OFFSET 99
+#define LINE_OFFSET 999
 #define NAME_SIZE 20
 #define LZ 1
 #define NO_LZ 0
@@ -21,9 +21,9 @@
 #define FILE_NAME_SIZE 25
 
 /***************************
- Required base by a project
+ Required base by project
 ****************************/
-#define BASE 14
+#define BASE 4
 #define NUMBER_OF_DIGITS 7 /*Max number for the base*/
 
 #define COMB_WIDTH 2     /*bits 0-1*/
@@ -54,6 +54,17 @@
 #define STOP 15
 
 #define ERROR(MSG,LINE) fprintf(stderr, "Error occured in the line: %d- %s\n", LINE, MSG);
+
+/***************************
+ Spacial 4-Base by project
+ ***************************/
+ typedef enum spacial_four_base
+ {
+     SPACIAL_ZERO = '*',
+     SPACIAL_ONE = '#',
+     SPACIAL_TWO = '%',
+     SPACIAL_THREE = '!'
+ }spacial_base;
 
 /****************************
  Bitfieled code line struct.

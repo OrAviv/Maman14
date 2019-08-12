@@ -70,6 +70,71 @@ void initialize_table()
     tmp_node = add_node("stop" , STOP , 0 , opNode);
 }
 
+/********************************************************
+ Helper function to extract .STRING from the code lines.
+*********************************************************/
+void stringExtractor(comp_line *code_line)
+{
+    /*Remove spaces.*/
+    removeSpaces(&(code_line->line_str));
+    (code_line->line_str)++;
+
+    /*Get second sign loop.*/
+    while ((code_line->line_str[0] != '\"') && (code_line->line_str[0] != '\0'))
+    {
+        array_data[dataCounter++] = from_char_to_data(code_line->line_str[0]);
+        (code_line->line_str)++;
+    }
+
+    if (code_line->line_str[0] == '\"')
+        array_data[dataCounter++] = from_char_to_data('\0');
+
+    else
+    {
+        ERROR("Error: .STRING must end with \" sign", (*code_line).line_number)
+        error_flag = TRUE;
+        return;
+    }
+}
+
+/********************************************************
+ Helper function to extract defines data.
+*********************************************************/
+void defineExtractor(comp_line *code_line)
+{
+    int sign;
+    int sum;
+
+    /* LOOP TILL THE END OF LINE */
+    while ((*code_line).line_str[0] != '\n') {
+        while((*code_line).line_str[0] != '=')
+            (code_line->line_str)++;
+        (code_line->line_str)++;
+        removeSpaces(&((*code_line).line_str));
+
+        if (code_line->line_str[0] == '-') {
+            sign = -1;
+            (code_line->line_str)++;
+        }
+
+
+        sum = 0;
+        sign = 1;
+        if(isdigit((*code_line).line_str[0]))
+        {
+            while (isdigit((*code_line).line_str[0]))
+            {
+                sum *= 10;
+                sum += ((*code_line).line_str[0]) - '0';
+                (code_line->line_str)++;
+            }
+            array_data[dataCounter++] = num_to_data(sum * sign);
+        }
+
+    }
+}
+
+
 /******************************************************
  Helper function to extract .DATA from the code lines.
 *******************************************************/
@@ -90,25 +155,32 @@ void dataExtractor(comp_line *code_line)
             (code_line->line_str)++;
         }
 
-        if (!isdigit((*code_line).line_str[0]))
-        {
-            ERROR("Error: wrong format, .DATA shall be a number", (*code_line).line_number)
-            error_flag = TRUE;
-        }
 
-        else
-        {
             sum = 0;
             sign = 1;
-
-            while (isdigit((*code_line).line_str[0]))
+            if(isdigit((*code_line).line_str[0]))
             {
-                sum *= 10;
-                sum += ((*code_line).line_str[0]) - '0';
-                (code_line->line_str)++;
+                while (isdigit((*code_line).line_str[0]))
+                {
+                    sum *= 10;
+                    sum += ((*code_line).line_str[0]) - '0';
+                    (code_line->line_str)++;
+                }
+
+                array_data[dataCounter++] = num_to_data(sum * sign);
             }
-            array_data[dataCounter++] = num_to_data(sum * sign);
-        }
+            else
+            {
+                while ((code_line->line_str[0] != '\0') && (code_line->line_str[0] == ','))
+                {
+                    array_data[dataCounter++] = from_char_to_data(code_line->line_str[0]);
+                    (code_line->line_str)++;
+                }
+
+                array_data[dataCounter++] = from_char_to_data('\0');
+                (code_line->line_str)++;
+
+            }
 
         /*Remove spaces.*/
         removeSpaces(&((*code_line).line_str));
@@ -125,43 +197,8 @@ void dataExtractor(comp_line *code_line)
 
     if (expecting_number == 1)
     {
-        ERROR("Error: expecting for namber after \',\' sign", (*code_line).line_number)
+        ERROR("Error: expecting for number after , sign", (*code_line).line_number)
         error_flag = TRUE;
-    }
-}
-
-/******************************************************** 
- Helper function to extract .STRING from the code lines.
-*********************************************************/
-void stringExtractor(comp_line *code_line)
-{
-    /*Remove spaces.*/
-    removeSpaces(&(code_line->line_str));
-
-    if (!(code_line->line_str[0] == '\"'))
-    {
-        ERROR("Error: .STRING must to start with \" sign", (*code_line).line_number)
-        error_flag = TRUE;
-        return;
-    }
-
-    (code_line->line_str)++;
-
-    /*Get second sign loop.*/
-    while ((code_line->line_str[0] != '\"') && (code_line->line_str[0] != '\0'))
-    {
-        array_data[dataCounter++] = from_char_to_data(code_line->line_str[0]);
-        (code_line->line_str)++;
-    }
-
-    if (code_line->line_str[0] == '\"')
-        array_data[dataCounter++] = from_char_to_data('\0');
-
-    else
-    {
-        ERROR("Error: .STRING must end with \" sign", (*code_line).line_number)
-        error_flag = TRUE;
-        return;
     }
 }
 
@@ -215,7 +252,7 @@ void externExtractor(comp_line *code_line)
 
     else if(code_line->line_str[0]<'A' || code_line->line_str[0]>'Z')
     {
-        ERROR("Symbol cannot start with the sign.", (*code_line).line_number)
+        ERROR("Symbol cannot start with sign.", (*code_line).line_number)
         error_flag = TRUE;
         return;
     }
@@ -270,6 +307,12 @@ void getCommand(comp_line *code_line, char *symbol)
         code_line->line_str += (sizeof(".extern") - 1);
         externExtractor(code_line);
     }
+    /*/if symbol is .define*/
+    else if (strncmp(code_line->line_str, ".define", sizeof(".define") - 1) == 0)
+    {
+        code_line->line_str += (sizeof(".define") - 1);
+        defineExtractor(code_line);
+    }
     else
     {
         ERROR("The command is not exists", (*code_line).line_number)
@@ -304,7 +347,7 @@ int getInstruction(comp_line *code_line)
     char num_of_exp_operands;
 
     removeSpaces(&(code_line->line_str));
-    code_line->line_str= strtok(code_line->line_str, "/");
+    code_line->line_str= strtok(code_line->line_str, " \t\n");
     tmp_node = search_node(code_line->line_str, opNode);
 
     /*If this is not legal code.*/
@@ -346,86 +389,9 @@ int getInstruction(comp_line *code_line)
         (code_line->line_str)++;
     }
 
-    (code_line->line_str)++;
-
-    switch (code_line->line_str[0])
-    {
-        case '0':
-            code_line->instruction->type = 0;
-            break;
-        case '1':
-            code_line->instruction->type = 1;
-            (code_line->line_str)++;
-
-            if (!(code_line->line_str[0] == '/'))
-            {
-                error_flag = TRUE;
-                return 0;
-            }
-
-            (code_line->line_str)++;
-
-            switch (code_line->line_str[0])
-            {
-                case '0':
-                    break;
-                case '1':
-                    code_line->instruction->comb |= 2;
-                    break;
-                default:
-                    ERROR("Error: wrong value detected.", (*code_line).line_number)
-                    error_flag = TRUE;
-                    return 0;
-            }
-            (code_line->line_str)++;
-
-            if (!(code_line->line_str[0] == '/'))
-            {
-                error_flag = TRUE;
-                return 0;
-            }
-            (code_line->line_str)++;
-
-            switch (code_line->line_str[0])
-            {
-                case '0':
-                    break;
-                case '1':
-                    code_line->instruction->comb |= 1;
-                    break;
-                default:
-                    ERROR("Error: wrong value detected.", (*code_line).line_number)
-                    error_flag = TRUE;
-                    return 0;
-            }
-            break;
-
-        default:
-            ERROR("Error: wrong value detected.", (*code_line).line_number)
-            error_flag = TRUE;
-            return 0;
-    }
-    (code_line->line_str)++;
+//    (code_line->line_str)++;
     removeSpaces(&(code_line->line_str));
 
-    /*Tester for  "," sign availability*/
-    if (!(code_line->line_str[0] == ','))
-    {
-        ERROR("Error: there is no ',' sign after comb and types.", (*code_line).line_number)
-        error_flag = TRUE;
-        return 0;
-    }
-
-    (code_line->line_str)++;
-    removeSpaces(&(code_line->line_str));
-
-    /*Tester for DBL value.*/
-    if ((code_line->line_str[0] != '1') && (code_line->line_str[0] != '0'))
-    {
-        ERROR("Error: DBL value must be 0 or 1.", (*code_line).line_number)
-        error_flag = TRUE;
-        return 0;
-    }
     code_line->instruction->dbl = code_line->line_str[0] - '0';
     (code_line->line_str)++;
     removeSpaces(&(code_line->line_str));
@@ -476,26 +442,28 @@ int getInstruction(comp_line *code_line)
             default:
                 instrCounter++;
 
-                if (strstr(code_line->line_str, "{!"))
-                {
-                    instrCounter++;
-
-                    if (num_of_exp_operands == 1)
-                        code_line->instruction->src_addr = 2;
-                    else
-                        code_line->instruction->dest_addr = 2;
-                }
-                else
-                {
+//                if (strstr(code_line->line_str, "{!"))
+//                {
+//                    instrCounter++;
+//
+//                    if (num_of_exp_operands == 1)
+//                        code_line->instruction->src_addr = 2;
+//                    else
+//                        code_line->instruction->dest_addr = 2;
+//                }
+//                else
+//                {
                     if (num_of_exp_operands == 1)
                         code_line->instruction->src_addr = 1;
                     else
                         code_line->instruction->dest_addr = 1;
-                }
+//                }
         }
         code_line->line_str = strtok(NULL, " \t,\n");
     }
-    instructionCounter += instrCounter;/*Instraction counter update.*/
+
+    /*Instruction counter update.*/
+    instructionCounter += instrCounter;
     return instrCounter;
 }
 
@@ -834,6 +802,26 @@ char *base_to_base_con(int num, int base, char *res, int lead_zero)
 
     for (i = 0; i < NUMBER_OF_DIGITS; i++){
         res[i] = temp[NUMBER_OF_DIGITS - 1 - i];
+    }
+
+    for (i = 0; i<NUMBER_OF_DIGITS; i++)
+    {
+        switch (res[i])
+        {
+            case '0':
+                res[i] = SPACIAL_ZERO;
+                break;
+            case '1':
+                res[i] = SPACIAL_ONE;
+                break;
+            case '2':
+                res[i] = SPACIAL_TWO;
+                break;
+            case '3':
+                res[i] = SPACIAL_THREE;
+                break;
+        }
+
     }
 
     res[i] = '\0';/*ADD THE NULL CHAR IN THE END:*/
